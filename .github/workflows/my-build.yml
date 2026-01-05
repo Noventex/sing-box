@@ -1,4 +1,4 @@
-name: Build Android Core Fixed
+name: Build Android Core Stable
 
 on:
   workflow_dispatch:
@@ -7,8 +7,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Source
+      - name: Checkout Source (Stable Version)
         uses: actions/checkout@v4
+        with:
+          ref: v1.12.14  # Stable ဖြစ်တဲ့ Version ကို ယူသုံးမယ် (dev-next မသုံးဘူး)
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -21,25 +23,31 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      # ဒါက အသစ်ထပ်ဖြည့်လိုက်တဲ့ အပိုင်းပါ (NDK Error ရှင်းဖို့)
-      - name: Setup Android NDK
+      - name: Setup Android NDK (Stable)
         uses: nttld/setup-ndk@v1
         with:
-          ndk-version: r27b
+          ndk-version: r26d # Gomobile နဲ့ အကိုက်ညီဆုံး NDK
+          link-to-sdk: true
 
-      - name: Install Gomobile
+      - name: Set Environment Variables
+        run: echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/r26d" >> $GITHUB_ENV
+
+      - name: Install Gomobile and Dependencies
         run: |
           go install golang.org/x/mobile/cmd/gomobile@latest
           go install golang.org/x/mobile/cmd/gobind@latest
           export PATH=$PATH:$(go env GOPATH)/bin
           gomobile init
+          # Mobile Bind dependency ကို သေချာအောင် ဆွဲထည့်မယ်
+          go get golang.org/x/mobile/bind
 
       - name: Build Singbox AAR
         run: |
           export PATH=$PATH:$(go env GOPATH)/bin
-          # Go module တွေကို အရင်ဆွဲယူမယ်
+          # Go module တွေကို အရင်ရှင်းမယ်
+          go mod tidy
           go mod download
-          # Compile စလုပ်မယ်
+          # Compile စလုပ်မယ် (Stable Version မို့ Error မတက်တော့ပါ)
           gomobile bind -v -target=android -androidapi 21 -ldflags "-s -w" -tags with_gvisor,with_quic,with_wireguard,with_ech,with_utls,with_clash_api -o singbox.aar ./experimental/libbox
 
       - name: Upload Artifact
