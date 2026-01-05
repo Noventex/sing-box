@@ -1,62 +1,64 @@
-name: Build Singbox Final
+name: Build Singbox Golden
 
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04  # အငြိမ်ဆုံး OS ကို သုံးမယ် (Latest မသုံးဘူး)
+    
     steps:
-      - name: Checkout Official Stable Source
+      - name: Checkout Official Singbox (v1.10.7)
         uses: actions/checkout@v4
         with:
-          repository: SagerNet/sing-box # Official Repo ကို တိုက်ရိုက်လှမ်းယူမယ်
-          ref: v1.11.4                  # အငြိမ်ဆုံး Version ကို ရွေးမယ် (Error ကင်းတယ်)
+          repository: SagerNet/sing-box
+          ref: v1.10.7  # Plugin နဲ့ အကိုက်ညီဆုံး Version
 
-      - name: Setup Go
+      - name: Setup Go 1.21
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'            # v1.11.4 နဲ့ အကိုက်ညီဆုံး Go version
+          go-version: '1.21' # v1.10.7 အတွက် အကောင်းဆုံး Go Version
 
-      - name: Setup Java
+      - name: Setup Java 11
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '11'
 
       - name: Setup Android NDK
         uses: nttld/setup-ndk@v1
         with:
-          ndk-version: r26d
+          ndk-version: r25c # Gomobile နဲ့ ပြဿနာမတက်တဲ့ NDK
           link-to-sdk: true
 
-      - name: Install Gomobile
+      - name: Install & Init Gomobile
         run: |
-          # Go Module တွေကို ရှင်းမယ်
+          # Go environment setup
           go env -w GO111MODULE=on
           
-          # Gomobile ကို သွင်းမယ်
+          # Install gomobile
           go install golang.org/x/mobile/cmd/gomobile@latest
           go install golang.org/x/mobile/cmd/gobind@latest
           
-          # Path လမ်းကြောင်း ပေးမယ်
+          # Add to PATH
           export PATH=$PATH:$(go env GOPATH)/bin
           
-          # Gomobile init
+          # Init with NDK
           gomobile init
 
-      - name: Build AAR
+      - name: Build AAR (The Core)
         run: |
           export PATH=$PATH:$(go env GOPATH)/bin
           
-          # Dependency တွေကို သေချာဆွဲမယ်
+          # Dependencies ရှင်းမယ်
+          go mod tidy
           go mod download
           go get golang.org/x/mobile/bind
           
-          # Compile လုပ်မယ် (Tags တွေ အကုန်ပါမယ်)
-          gomobile bind -v -target=android -androidapi 21 -ldflags "-s -w" -tags with_gvisor,with_quic,with_wireguard,with_ech,with_utls,with_clash_api -o singbox.aar ./experimental/libbox
+          # Compile လုပ်မယ် (Full Package Path သုံးထားပါတယ်)
+          gomobile bind -v -target=android -androidapi 21 -ldflags "-s -w" -tags with_gvisor,with_quic,with_wireguard,with_ech,with_utls,with_clash_api -o singbox.aar github.com/sagernet/sing-box/experimental/libbox
 
-      - name: Upload Artifact
+      - name: Upload Result
         uses: actions/upload-artifact@v4
         with:
           name: singbox-aar
