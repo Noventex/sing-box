@@ -1,4 +1,4 @@
-name: Build Android Core Stable
+name: Build Singbox Final
 
 on:
   workflow_dispatch:
@@ -7,15 +7,16 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Source (Stable Version)
+      - name: Checkout Official Stable Source
         uses: actions/checkout@v4
         with:
-          ref: v1.12.14  # Stable ဖြစ်တဲ့ Version ကို ယူသုံးမယ် (dev-next မသုံးဘူး)
+          repository: SagerNet/sing-box # Official Repo ကို တိုက်ရိုက်လှမ်းယူမယ်
+          ref: v1.11.4                  # အငြိမ်ဆုံး Version ကို ရွေးမယ် (Error ကင်းတယ်)
 
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version: '1.22'            # v1.11.4 နဲ့ အကိုက်ညီဆုံး Go version
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -23,31 +24,36 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android NDK (Stable)
+      - name: Setup Android NDK
         uses: nttld/setup-ndk@v1
         with:
-          ndk-version: r26d # Gomobile နဲ့ အကိုက်ညီဆုံး NDK
+          ndk-version: r26d
           link-to-sdk: true
 
-      - name: Set Environment Variables
-        run: echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/r26d" >> $GITHUB_ENV
-
-      - name: Install Gomobile and Dependencies
+      - name: Install Gomobile
         run: |
+          # Go Module တွေကို ရှင်းမယ်
+          go env -w GO111MODULE=on
+          
+          # Gomobile ကို သွင်းမယ်
           go install golang.org/x/mobile/cmd/gomobile@latest
           go install golang.org/x/mobile/cmd/gobind@latest
+          
+          # Path လမ်းကြောင်း ပေးမယ်
           export PATH=$PATH:$(go env GOPATH)/bin
+          
+          # Gomobile init
           gomobile init
-          # Mobile Bind dependency ကို သေချာအောင် ဆွဲထည့်မယ်
-          go get golang.org/x/mobile/bind
 
-      - name: Build Singbox AAR
+      - name: Build AAR
         run: |
           export PATH=$PATH:$(go env GOPATH)/bin
-          # Go module တွေကို အရင်ရှင်းမယ်
-          go mod tidy
+          
+          # Dependency တွေကို သေချာဆွဲမယ်
           go mod download
-          # Compile စလုပ်မယ် (Stable Version မို့ Error မတက်တော့ပါ)
+          go get golang.org/x/mobile/bind
+          
+          # Compile လုပ်မယ် (Tags တွေ အကုန်ပါမယ်)
           gomobile bind -v -target=android -androidapi 21 -ldflags "-s -w" -tags with_gvisor,with_quic,with_wireguard,with_ech,with_utls,with_clash_api -o singbox.aar ./experimental/libbox
 
       - name: Upload Artifact
