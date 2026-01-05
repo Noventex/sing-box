@@ -1,0 +1,44 @@
+name: Build Android Core
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Gomobile
+        run: |
+          go install golang.org/x/mobile/cmd/gomobile@latest
+          go install golang.org/x/mobile/cmd/gobind@latest
+          export PATH=$PATH:$(go env GOPATH)/bin
+          gomobile init
+
+      - name: Build Singbox AAR
+        run: |
+          export PATH=$PATH:$(go env GOPATH)/bin
+          # ဒီနေရာမှာ Tags တွေ အကုန်ပါအောင် ထည့်ပေးထားပါတယ်
+          gomobile bind -target=android -androidapi 21 -ldflags "-s -w" -tags with_gvisor,with_quic,with_wireguard,with_ech,with_utls,with_clash_api -o singbox.aar ./experimental/libbox
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: singbox-aar
+          path: singbox.aar
