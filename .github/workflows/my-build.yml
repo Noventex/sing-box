@@ -1,4 +1,4 @@
-name: Build Android Core
+name: Build Android Core Fixed
 
 on:
   workflow_dispatch:
@@ -21,8 +21,11 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      # ဒါက အသစ်ထပ်ဖြည့်လိုက်တဲ့ အပိုင်းပါ (NDK Error ရှင်းဖို့)
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r27b
 
       - name: Install Gomobile
         run: |
@@ -34,8 +37,10 @@ jobs:
       - name: Build Singbox AAR
         run: |
           export PATH=$PATH:$(go env GOPATH)/bin
-          # ဒီနေရာမှာ Tags တွေ အကုန်ပါအောင် ထည့်ပေးထားပါတယ်
-          gomobile bind -target=android -androidapi 21 -ldflags "-s -w" -tags with_gvisor,with_quic,with_wireguard,with_ech,with_utls,with_clash_api -o singbox.aar ./experimental/libbox
+          # Go module တွေကို အရင်ဆွဲယူမယ်
+          go mod download
+          # Compile စလုပ်မယ်
+          gomobile bind -v -target=android -androidapi 21 -ldflags "-s -w" -tags with_gvisor,with_quic,with_wireguard,with_ech,with_utls,with_clash_api -o singbox.aar ./experimental/libbox
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
